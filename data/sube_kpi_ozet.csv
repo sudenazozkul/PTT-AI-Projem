@@ -1,0 +1,11 @@
+﻿sube_kodu,sube_adi,il,ilce,sube_tipi,toplam_kabul,toplam_teslim,toplam_geciken,toplam_iade,toplam_sikayet,toplam_gelir,teslim_basarisi_pct,gecikme_orani_pct,iade_orani_pct,sikayet_orani_binde,personel_verimliligi,dagitici_is_yuku,gonderi_basi_gelir,ortalama_teslim_suresi
+S003,İstanbul Kadıköy,İstanbul,Kadıköy,Merkez,75941,70303,4970,1411,749,3687550.46,92.58,6.54,1.86,10.65,13.95,38.35,48.56,1.51
+S004,İstanbul Üsküdar,İstanbul,Üsküdar,Büyük,70912,65467,4812,1296,764,3431787.71,92.32,6.79,1.83,11.67,14.55,39.4,48.4,1.55
+S005,İzmir Konak,İzmir,Konak,Merkez,65674,60392,4782,1180,645,3170659.35,91.96,7.28,1.8,10.68,14.59,40.54,48.28,1.55
+S007,Antalya Muratpaşa,Antalya,Muratpaşa,Büyük,60594,55477,4630,1098,680,2901502.14,91.56,7.64,1.81,12.26,15.41,42.08,47.88,1.57
+S002,Ankara Keçiören,Ankara,Keçiören,Büyük,63037,57411,5094,1142,736,3028821.5,91.08,8.08,1.81,12.82,15.19,43.78,48.05,1.63
+S001,Ankara Çankaya,Ankara,Çankaya,Merkez,67473,61179,5723,1226,840,3203185.93,90.67,8.48,1.82,13.73,14.16,41.65,47.47,1.64
+S006,Bursa Nilüfer,Bursa,Nilüfer,Büyük,56964,51332,5197,1023,722,2705147.48,90.11,9.12,1.8,14.07,15.01,45.21,47.49,1.67
+S009,Samsun İlkadım,Samsun,İlkadım,Orta,45220,40688,4187,809,564,2141513.64,89.98,9.26,1.79,13.86,15.07,41.87,47.36,1.68
+S008,Konya Selçuklu,Konya,Selçuklu,Orta,49558,43922,5176,881,711,2328372.81,88.63,10.44,1.78,16.19,15.25,45.89,46.98,1.76
+S010,Erzurum Yakutiye,Erzurum,Yakutiye,Orta,42010,35908,5619,760,786,1928782.61,85.47,13.38,1.81,21.89,14.25,46.68,45.91,2.07
