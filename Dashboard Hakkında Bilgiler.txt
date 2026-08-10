@@ -1,0 +1,65 @@
+İlk dashboard’da neler olacak?
+Belgedeki “Genel Durum Ekranı” ile başlayacağız. İlk sürümde tek bir ekran oluşturmak yeterli.
+
+1. Sayfa başlığı
+Ekranın üstünde:
+PTT AI Şube Performans Danışmanı
+Genel Durum Dashboard'u
+yazacak.
+
+2. Filtreler
+Sol menüde kullanıcı şunları seçebilecek:
+Başlangıç tarihi
+Bitiş tarihi
+İl
+Şube tipi
+Şube
+Örneğin kullanıcı yalnızca:
+İl: Ankara
+Tarih: 1 Mart – 30 Haziran
+seçerse kartlar ve grafikler sadece bu verilere göre güncellenecek.
+
+3. Özet KPI kartları
+Ekranın üst bölümünde büyük kartlar olacak:
+Toplam Gönderi
+Teslim Başarısı
+Ortalama Teslim Süresi
+Toplam Şikâyet
+Toplam Gelir
+Örnek görünüm:
+Toplam gönderi     Teslim başarısı     Ortalama süre
+597.380             %90,84              1,66 gün
+Bu değerler sabit yazılmayacak. Seçilen filtreye göre Pandas ile tekrar hesaplanacak
+
+4. Şube performans sıralaması
+Bir sütun grafiğinde şubelerin teslim başarı oranları gösterilecek:
+Kadıköy          %92,58
+Üsküdar          %92,32
+Konak            %91,96
+...
+Yakutiye         %85,47
+Başarılı şubeler üstte, riskli şubeler altta olacak.
+
+5. Zaman içindeki performans grafiği
+Çizgi grafiğinde teslim başarısının günlere veya aylara göre değişimi gösterilecek:
+Ocak → Şubat → Mart → Nisan → Mayıs → Haziran
+Bu grafik için gunluk_kpi.csv kullanılacak. Böylece performansın hangi tarihte düşmeye başladığını görebileceğiz.
+
+6. En başarılı ve en riskli şube
+Ayrı bilgi kutularında:
+En başarılı şube: İstanbul Kadıköy
+En riskli şube: Erzurum Yakutiye
+gösterilecek.
+Bunlar sube_kpi_ozet.csv sıralamasından bulunabilir.
+
+7. Şube detay tablosu
+Ekranın altında şu sütunlardan oluşan tablo yer alacak:
+Şube
+Toplam gönderi
+Teslim başarısı
+Gecikme oranı
+İade oranı
+Şikâyet oranı
+Personel verimliliği
+Ortalama teslim süresi
+Kullanıcı tabloyu sıralayabilecek ve indirebilecek.

@@ -1,0 +1,589 @@
+1)VERİ SETİNİN ÖZELLİKLERİ
+10 farklı şube
+1 Ocak–29 Haziran 2026 tarihleri
+180 günlük veri
+Toplam 1.800 kayıt
+29 veri alanı
+Eksik hücre yok
+Tekrarlanan tarih–şube kaydı yok
+Türkçe karakterler Excel ile uyumlu
+Aynı kod ve seed ile yeniden üretilebilir
+
+Veriler tamamen rastgele değil. Şu ilişkiler bilinçli olarak modellendi:
+Yağmur ve kar, teslim süresini ve gecikmeleri artırıyor.
+Dağıtıcı başına iş yükü arttığında performans düşüyor.
+İzinli personel iş kapasitesini etkiliyor.
+Pazartesi günleri gönderi yoğunluğu yükseliyor.
+Tatil ve bayram dönemleri ayrıca işaretleniyor.
+Fazla mesai iş yüküne göre değişiyor.
+Şikâyetler gecikme ve başarısız teslimatlarla ilişkili.
+Çankaya şubesinde son 60 güne doğru kontrollü bir bozulma senaryosu bulunuyor.
+Kontrol sonucunda Çankaya’nın ortalama teslim süresi ilk dönemde 1,51 günken son dönemde 1,82 güne; ortalama geciken gönderisi 27,09 iken 41,20 seviyesine çıktı. Dolayısıyla ileride trend ve kök neden analizini test edebileceğimiz anlamlı bir senaryomuz var.
+Bir sonraki mantıklı aşama, bu CSV’yi okuyup hatalı kayıtları kontrol edecek data_loader.py ve validation.py modüllerini geliştirmek.
+dosyayı bana metin olarak yaz demek istemiştim
+
+genrate_sample_data.py dosyasının mantığı
+1. Kütüphaneler
+import csv
+import math
+import random
+from datetime import date, timedelta
+from pathlib import Path
+Bunların görevleri:
+csv: Oluşturduğumuz verileri CSV dosyasına kaydeder.
+math: Dönemsel yoğunluk oluşturmak için matematiksel fonksiyonlar sağlar.
+random: Rastgele fakat kontrollü veriler üretir.
+date: Tarih oluşturur.
+timedelta: Başlangıç tarihine gün ekler.
+Path: Dosya ve klasör yollarını güvenli şekilde oluşturur.
+Bu program sadece Python’un kendi kütüphanelerini kullanıyor. Pandas’a ihtiyaç duymadan veri üretebiliyor.
+2. Temel ayarlar
+SEED = 20260805
+START_DATE = date(2026, 1, 1)
+DAY_COUNT = 180
+SEED
+SEED = 20260805
+Rastgele sayı üretimini sabitliyor.
+Normalde programı her çalıştırdığınızda farklı veriler oluşur. SEED sayesinde her çalıştırmada aynı sonuç üretilir.
+Bu özellikle test yaparken önemlidir. Örneğin bugün Çankaya’nın ortalama teslim süresi 1.82 çıktıysa yarın da aynı sonucu alırsınız.
+Seed değerini değiştirirseniz veri seti de değişir:
+SEED = 12345
+Başlangıç tarihi
+START_DATE = date(2026, 1, 1)
+Veriler 1 Ocak 2026’dan itibaren oluşturulur.
+Gün sayısı
+DAY_COUNT = 180
+Her şube için 180 günlük veri üretilir. Son tarih 29 Haziran 2026 olur.
+3. CSV dosyasının konumu
+OUTPUT_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "data"
+    / "sube_performans.csv"
+)
+__file__, çalıştırılan Python dosyasını ifade eder:
+scripts/generate_sample_data.py
+parents[1] ile proje ana klasörüne çıkılır. Ardından data/sube_performans.csv eklenir.
+Ortaya çıkan yol:
+PTT AI Projem/data/sube_performans.csv
+Bu yöntem sayesinde programı hangi terminal klasöründen çalıştırırsanız çalıştırın CSV doğru yere yazılır.
+4. Şube bilgileri
+BRANCHES = [
+    ("S001", "Ankara Çankaya", "Ankara", "Çankaya", "Merkez", 1.25, 24, 9),
+    ...
+]
+Her parantez bir şubeyi tanımlar.
+Örneğin:
+("S001", "Ankara Çankaya", "Ankara", "Çankaya", "Merkez", 1.25, 24, 9)
+değerlerinin anlamı şöyledir:
+Değer	Anlamı
+S001	Şube kodu
+Ankara Çankaya	Şube adı
+Ankara	İl
+Çankaya	İlçe
+Merkez	Şube tipi
+1.25	Şubenin yoğunluk/ölçek katsayısı
+24	Toplam personel
+9	Dağıtıcı sayısı
+
+
+Ölçek katsayısı şubenin işlem hacmini etkiler. Örneğin Kadıköy’ün katsayısı 1.40, Erzurum Yakutiye’nin ise 0.75 olarak ayarlandı. Bu nedenle Kadıköy’de genel olarak daha fazla işlem üretilir.
+Bu, büyük ve orta ölçekli şubeler arasında gerçekçi farklılıklar meydana getirir.
+5. CSV sütunları
+FIELDS = [
+    "tarih",
+    "sube_kodu",
+    ...
+]
+Bu liste CSV dosyasının sütunlarını ve sıralarını belirler.
+Veriler altı ana gruba ayrılabilir:
+Şube bilgileri
+sube_kodu
+sube_adi
+il
+ilce
+sube_tipi
+Operasyon bilgileri
+kabul_edilen
+teslim_edilen
+bekleyen
+geciken
+iade_edilen
+ortalama_teslim_suresi
+Personel bilgileri
+toplam_personel
+dagitici_sayisi
+gise_personeli
+izinli_personel
+fazla_mesai_saati
+Kalite bilgileri
+sikayet_sayisi
+basarisiz_teslimat
+hasarli_gonderi
+yanlis_teslimat
+Finansal bilgiler
+toplam_gelir
+kargo_geliri
+bankacilik_islem_sayisi
+tahsilat_sayisi
+Çevresel bilgiler
+hava_durumu
+resmi_tatil
+bayram_donemi
+bolgesel_yogunluk
+6. clamp fonksiyonu
+def clamp(value, lower, upper):
+    return max(lower, min(value, upper))
+Bu fonksiyon bir sayının belirlediğimiz sınırların dışına çıkmasını engeller.
+Örneğin:
+clamp(120, 0, 100)
+sonucu:
+100
+olur.
+clamp(-5, 0, 100)
+sonucu:
+0
+olur.
+Bunu teslim başarı oranlarının mantıksız değerlere çıkmasını önlemek için kullanıyoruz. Teslim başarı oranı 1.20, yani %120 olamaz. Benzer şekilde negatif de olamaz.
+Örneğin:
+success_rate = clamp(..., 0.72, 0.99)
+Başarı oranını %72 ile %99 arasında tutar.
+7. Hava durumu üretimi
+def weather_for(city, current, rng):
+Bu fonksiyon şehre ve mevsime göre hava durumu üretir.
+Tamamen bağımsız rastgele seçim yapmak yerine bazı mantıksal kurallar kullanır.
+Örneğin Erzurum:
+if city == "Erzurum" and month in (1, 2, 3) and roll < 0.45:
+    return "Karlı"
+Erzurum’da ocak, şubat ve mart aylarında %45 olasılıkla hava karlı olur.
+İstanbul, Samsun ve Bursa:
+if city in ("Samsun", "İstanbul", "Bursa") and roll < 0.25:
+    return "Yağmurlu"
+Bu şehirlerde yağmur ihtimali artırılmıştır.
+Antalya ve İzmir:
+if month in (6, 7, 8) and city in ("Antalya", "İzmir"):
+    return "Sıcak"
+Yaz aylarında sıcak hava üretme ihtimali daha yüksektir.
+Buradaki amaç hava durumunun teslimat performansına etkisini daha sonra analiz edebilmektir.
+8. Bir günlük kayıt oluşturma
+Programın en önemli bölümü:
+def make_row(branch, current, day_index, rng):
+Bu fonksiyon bir şubenin tek bir gününe ait bütün bilgileri üretir.
+Örneğin:
+1 Ocak 2026 – Ankara Çankaya
+için bir satır oluşturur.
+Fonksiyon şube bilgilerini şu şekilde ayırır:
+(
+    code,
+    name,
+    city,
+    district,
+    branch_type,
+    scale,
+    personnel,
+    couriers,
+) = branch
+Böylece şube listesindeki değerleri anlamlı değişken isimleriyle kullanırız.
+9. Hafta sonu, tatil ve bayram kontrolü
+weekend = current.weekday() >= 5
+Python’da gün numaraları şöyledir:
+0 = Pazartesi
+1 = Salı
+2 = Çarşamba
+3 = Perşembe
+4 = Cuma
+5 = Cumartesi
+6 = Pazar
+Bu nedenle >= 5, cumartesi veya pazar anlamına gelir.
+Resmî tatiller ayrıca tanımlanmıştır:
+official_holiday = current in {
+    date(2026, 1, 1),
+    date(2026, 4, 23),
+    date(2026, 5, 1),
+    date(2026, 5, 19),
+}
+Sonuç CSV’de:
+0 = Normal gün
+1 = Resmî tatil
+olarak saklanır.
+Bayram dönemleri de tarih aralığıyla kontrol edilir:
+holiday_period = (
+    date(2026, 3, 19) <= current <= date(2026, 3, 22)
+    or date(2026, 5, 26) <= current <= date(2026, 5, 30)
+)
+10. Dönemsel yoğunluk
+seasonal = 1 + 0.10 * math.sin(day_index / 18)
+Bu kod, işlem yoğunluğunun her gün aynı kalmasını engeller.
+sin fonksiyonu dalga şeklinde değişen değer üretir. Böylece gönderi hacmi bazı dönemlerde yükselir, bazı dönemlerde düşer.
+Yaklaşık olarak:
+Düşük → Normal → Yüksek → Normal → Düşük
+şeklinde bir hareket oluşur.
+Bu sayede dashboard’daki grafikler düz görünmez ve trend analizi yapılabilir.
+11. Haftanın gününün etkisi
+if current.weekday() == 0:
+    weekday_factor = 1.18
+elif weekend:
+    weekday_factor = 0.48
+else:
+    weekday_factor = 1.0
+Bunun anlamı:
+Pazartesi günleri işlem hacmi yaklaşık %18 artar.
+Hafta sonlarında işlem hacmi normalin yaklaşık %48’ine düşer.
+Diğer günlerde normal seviyede kalır.
+Bu katsayı daha sonra kabul edilen gönderi sayısına uygulanır.
+12. Kabul edilen gönderi sayısı
+accepted = max(
+    25,
+    round(
+        340 * density * weekday_factor
+        + rng.gauss(0, 22)
+    ),
+)
+Temel işlem hacmi 340 olarak alınır.
+Bu değer:
+Şube büyüklüğü,
+Mevsimsel yoğunluk,
+Haftanın günü,
+Bayram dönemi,
+Küçük rastgele değişimler
+ile değiştirilir.
+rng.gauss(0, 22), ortalaması sıfır olan doğal bir sapma ekler. Her gün tam olarak aynı sayıda gönderi oluşmasını engeller.
+max(25, ...) sayesinde en az 25 gönderi üretilir.
+13. İzinli personel
+leave = max(
+    0,
+    min(
+        personnel // 3,
+        round(rng.gauss(1.5, 1.1)),
+    ),
+)
+İzinli personel sayısı çoğu zaman 0–3 civarında oluşturulur.
+Ancak:
+Negatif olamaz.
+Toplam personelin üçte birini geçemez.
+İzinli personel sayısı aktif dağıtıcı sayısını azaltır:
+active_couriers = max(
+    1,
+    couriers - min(leave, couriers - 1),
+)
+Burada en az bir aktif dağıtıcı kalması garanti edilir.
+14. Çankaya performans bozulması
+if code == "S001":
+    degradation = (
+        0.07 * max(0, day_index - 120) / 59
+    )
+else:
+    degradation = 0
+Bu, veri setindeki özel test senaryosudur.
+İlk 120 gün Çankaya normal çalışır. Son 60 günde performansı yavaş yavaş bozulur.
+Bozulma bir anda gerçekleşmez:
+121. gün → çok küçük düşüş
+140. gün → orta seviyede düşüş
+180. gün → yaklaşık %7 ek düşüş
+Böylece sistemimizin şu problemleri algılayıp algılamadığını test edebiliriz:
+Son dönemde performans düştü mü?
+Teslim süresi arttı mı?
+Gecikme sayısı yükseldi mi?
+Hangi şube riskli?
+Düşüş ne zaman başladı?
+15. Hava cezası
+weather_penalties = {
+    "Açık": 0,
+    "Bulutlu": 0.005,
+    "Yağmurlu": 0.035,
+    "Karlı": 0.085,
+    "Sıcak": 0.018,
+}
+Her hava durumu teslimat performansını farklı etkiler:
+Açık hava: ceza yok
+Bulutlu hava: çok küçük etki
+Yağmur: yaklaşık %3,5 etki
+Kar: yaklaşık %8,5 etki
+Sıcak: yaklaşık %1,8 etki
+Bu değerler gerçek PTT ölçümleri değildir. Analiz sistemini test etmek amacıyla belirlenmiş varsayımsal değerlerdir.
+16. Dağıtıcı iş yükü
+workload = accepted / active_couriers
+Örneğin:
+Kabul edilen gönderi: 450
+Aktif dağıtıcı: 9
+İş yükü: 450 / 9 = 50
+Dağıtıcı başına 50 gönderi düşer.
+İş yükü 48’in üzerine çıkarsa performans cezası başlar:
+workload_penalty = (
+    max(0, workload - 48) * 0.0018
+)
+Bu bize önemli bir neden-sonuç ilişkisi sağlar:
+İzinli personel arttı
+→ Aktif dağıtıcı azaldı
+→ Dağıtıcı başına iş yükü arttı
+→ Teslimat başarısı düştü
+→ Gecikmeler ve şikâyetler arttı
+AI modülünün ileride yorumlayacağı temel ilişkilerden biri budur.
+17. Teslim başarı oranı
+success_rate = clamp(
+    0.965
+    - weather_penalty
+    - workload_penalty
+    - degradation
+    + rng.gauss(0, 0.009),
+    0.72,
+    0.99,
+)
+Normal başarı oranı %96,5 seviyesinden başlar.
+Daha sonra şu etkiler çıkarılır:
+Kötü hava etkisi
+Yüksek iş yükü etkisi
+Çankaya’daki özel bozulma etkisi
+Küçük bir rastgele değişim de eklenir.
+Sonuç %72 ile %99 arasında tutulur.
+18. Teslim, iade ve bekleyen gönderiler
+İade edilen gönderiler:
+returned = ...
+Teslim edilen gönderiler:
+delivered = round(
+    accepted * success_rate
+) - returned
+Bekleyen gönderiler:
+pending = accepted - delivered - returned
+Burada önemli bir veri bütünlüğü kuralı vardır:
+Kabul edilen =
+Teslim edilen + Bekleyen + İade edilen
+Örneğin:
+181 kabul edilen
+171 teslim edilen
+7 bekleyen
+3 iade edilen
+Kontrol:
+171 + 7 + 3 = 181
+Bu sayede operasyon sayıları birbiriyle tutarlı kalır.
+19. Geciken ve başarısız teslimatlar
+delayed = ...
+failed = ...
+Gecikme sayısı başarı oranı düştükçe yükselir.
+Başarısız teslimatlar ise şunlardan etkilenir:
+Kötü hava
+Performans bozulması
+Rastgele günlük değişiklikler
+İade edilen gönderilerin de başarısız teslimat olduğu kabul edilmiştir:
+failed = max(returned, ...)
+Bu nedenle başarısız teslimat sayısı iade sayısından küçük olamaz.
+20. Ortalama teslim süresi
+avg_delivery = clamp(
+    1.35
+    + weather_penalty * 10
+    + workload_penalty * 7
+    + degradation * 8
+    + rng.gauss(0, 0.12),
+    0.8,
+    4.5,
+)
+Normal teslim süresi yaklaşık 1.35 günden başlar.
+Şunlar teslim süresini artırır:
+Yağmur veya kar
+Dağıtıcı başına yüksek iş yükü
+Çankaya’daki performans bozulması
+Sonuç 0.8 ile 4.5 gün arasında tutulur.
+21. Şikâyet ve kalite verileri
+complaints = max(
+    0,
+    round(
+        (delayed + failed) * 0.10
+        + rng.gauss(0, 1.2)
+    ),
+)
+Şikâyet sayısı geciken ve başarısız teslimatlardan etkilenir.
+Yani:
+Gecikme artarsa → şikâyetler de genellikle artar
+Hasarlı ve yanlış teslimatlar da düşük oranlarda oluşturulur:
+damaged = ...
+wrong = ...
+Bunların negatif olması engellenir.
+22. Fazla mesai
+overtime = max(
+    0,
+    (workload - 42) * couriers * 0.08
+    + rng.gauss(1.5, 1.2),
+)
+Dağıtıcı başına iş yükü yükseldiğinde fazla mesai de yükselir.
+Bu, ileride şu tür analizler yapılmasını sağlar:
+Gönderi hacmi artmasına rağmen personel sayısı değişmemiş, fazla mesai ve gecikmeler yükselmiştir.
+
+23. Finansal veriler
+Kargo geliri:
+cargo_revenue = delivered * rng.uniform(36, 48)
+Teslim edilen her gönderi için yaklaşık 36–48 TL arasında kargo geliri varsayılır.
+Bankacılık işlemleri:
+banking = accepted * rng.uniform(0.32, 0.55)
+Tahsilat sayısı:
+collections = banking * rng.uniform(0.30, 0.55)
+Toplam gelir:
+total_revenue = (
+    cargo_revenue
+    + banking * rng.uniform(14, 22)
+    + collections * rng.uniform(8, 14)
+)
+Bu değerler de gerçek PTT ücretleri değildir. Prototipin finansal analiz bölümünü test etmek için üretilmiştir.
+24. Sözlük olarak satır oluşturma
+Fonksiyonun sonunda bütün değerler bir Python sözlüğüne yerleştirilir:
+return {
+    "tarih": current.isoformat(),
+    "sube_kodu": code,
+    "sube_adi": name,
+    ...
+}
+Örnek bir kayıt yaklaşık olarak şöyle görünür:
+{
+    "tarih": "2026-01-01",
+    "sube_kodu": "S001",
+    "sube_adi": "Ankara Çankaya",
+    "kabul_edilen": 181,
+    "teslim_edilen": 171,
+    "bekleyen": 7,
+    "iade_edilen": 3
+}
+current.isoformat() tarihi şu standart biçime dönüştürür:
+2026-01-01
+25. main fonksiyonu
+def main():
+Programın ana çalışma noktasıdır.
+İlk olarak kontrollü rastgele sayı üreticisi oluşturulur:
+rng = random.Random(SEED)
+Ardından data klasörü mevcut değilse oluşturulur:
+OUTPUT_PATH.parent.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+exist_ok=True, klasör zaten varsa hata verilmesini önler.
+26. Bütün satırların oluşturulması
+rows = [
+    make_row(
+        branch,
+        START_DATE + timedelta(days=day_index),
+        day_index,
+        rng,
+    )
+    for day_index in range(DAY_COUNT)
+    for branch in BRANCHES
+]
+Bu bölüm iki döngü çalıştırır:
+Her gün için:
+    Her şube için:
+        Bir kayıt oluştur
+Hesap:
+180 gün × 10 şube = 1.800 satır
+timedelta başlangıç tarihine gün ekler:
+0. gün  → 2026-01-01
+1. gün  → 2026-01-02
+2. gün  → 2026-01-03
+...
+179. gün → 2026-06-29
+27. CSV’ye kaydetme
+with OUTPUT_PATH.open(
+    "w",
+    encoding="utf-8-sig",
+    newline="",
+) as file:
+Dosya yazma modunda açılır.
+"w": Dosyayı yazmak için açar.
+encoding="utf-8-sig": Türkçe karakterlerin Excel’de doğru görünmesini sağlar.
+newline="": CSV satırlarında gereksiz boşluk oluşmasını engeller.
+Dikkat: "w" kullanıldığı için program tekrar çalıştırıldığında mevcut CSV’nin üzerine yazılır.
+Sütun başlıkları yazılır:
+writer.writeheader()
+Sonra 1.800 veri satırı kaydedilir:
+writer.writerows(rows)
+28. Programın çalıştırılması
+if __name__ == "__main__":
+    main()
+Bu bölüm, dosya doğrudan çalıştırıldığında main() fonksiyonunu başlatır.
+Terminalde:
+python scripts\generate_sample_data.py
+komutunu verdiğinizde bu blok çalışır.
+Program sonunda:
+1800 satır oluşturuldu: ...\data\sube_performans.csv
+mesajı gösterilir.
+Kısaca veri üretim akışı
+Şubeleri tanımla
+        ↓
+180 günlük tarih oluştur
+        ↓
+Her gün ve her şube için kayıt üret
+        ↓
+Hafta, tatil, hava ve yoğunluk etkilerini hesapla
+        ↓
+Personel ve dağıtıcı iş yükünü hesapla
+        ↓
+Teslimat, gecikme ve kalite değerlerini üret
+        ↓
+Gelir değerlerini üret
+        ↓
+1.800 kaydı CSV dosyasına yaz
+Bu aşamada bir AI modeli geliştirmedik. AI modelinin ileride analiz edeceği, içerisinde anlamlı ilişkiler bulunan kontrollü bir test verisi hazırladık. En önemli kazanımımız yalnızca rastgele sayılar değil; iş yükü, personel, hava durumu, teslim süresi, gecikme ve şikâyet arasında analiz edilebilir bağlantılar oluşturmak oldu.
+
+2)VERİ DOĞRULAMA MODÜLÜ
+validate_data.py dosyasının mantığı
+proje_klasorunu_bul()
+csv_dosyasini_bul()
+
+try:
+    veri = csv_dosyasini_oku()
+except:
+    hata_mesaji_goster()
+    programi_basarisiz_bitir()
+
+sonuc = veriyi_dogrula()
+
+uyarilari_goster()
+
+if hata_var:
+    hatalari_goster()
+    programi_basarisiz_bitir()
+else:
+    basarili_mesaji_goster()
+    programi_basarili_bitir()
+data_loader.py dosyasının mantığı
+Genel Akış
+Dosya yolunu al
+→ Dosya var mı kontrol et
+→ Gerçekten dosya mı kontrol et
+→ CSV uzantılı mı kontrol et
+→ Pandas ile oku
+→ Okuma hatalarını anlaşılır hâle getir
+→ Başlık ve metin boşluklarını temizle
+→ DataFrame'i döndür
+
+| `data_loader.py`             | `validation.py` |
+
+| Dosyayı bulur               | Sütunları kontrol eder |
+| CSV uzantısını kontrol eder | Tarihleri kontrol eder |
+| CSV’yi Pandas ile okur      | Negatif değerleri kontrol eder |
+| Okuma hatalarını yakalar    | Tekrarlı kayıtları kontrol eder |
+| Metin boşluklarını temizler | Operasyon toplamlarını kontrol eder |
+| DataFrame döndürür          | Doğrulama sonucu döndürür |
+
+validation.py dosyasının mantığı
+Dosyanın genel akışı şöyledir
+DataFrame’i al
+→ Dosya boş mu?
+→ Zorunlu sütunlar var mı?
+→ Boş hücreleri bul
+→ Tarihleri kontrol et
+→ Sayısal alanları kontrol et
+→ Negatif değerleri bul
+→ Tekrarlanan kayıtları bul
+→ Operasyon toplamlarını kontrol et
+→ Personel kurallarını kontrol et
+→ Tatil ve hava durumu değerlerini kontrol et
+→ Hata, uyarı ve temizlenmiş veriyi döndür
+
+Hata ve uyarı biriktirme mantığı
+Fonksiyon çoğu kontrolde ilk hatada durmaz.
+Örneğin aynı CSV’de:
+Geçersiz tarih,
+Negatif gönderi,
+Tekrarlı kayıt
+bulunuyorsa üçünü de tek çalıştırmada bildirir.
+Bu yaklaşım kullanıcı açısından daha kullanışlıdır. Her çalıştırmada tek hata düzeltmek yerine bütün sorunları aynı anda görebilir.
+Yalnızca şu iki durumda erken döner:
+DataFrame tamamen boşsa
+Zorunlu sütunlar eksikse
+Çünkü bu durumlarda sonraki kontroller güvenli şekilde çalıştırılamaz.

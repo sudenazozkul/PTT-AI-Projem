@@ -9,6 +9,8 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "pandas>=3.0.5",
+    "plotly>=6.9.0",
+    "streamlit>=1.61.1",
 ]
 
 [project.scripts]
