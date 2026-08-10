@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 
@@ -120,6 +121,15 @@ st.markdown(
             color: #4a3c00;
             border: 1px solid #f3d75a;
         }
+        section[data-testid="stSidebar"] {
+            background: #14213d;
+            border-right: 4px solid #ffcc00;
+        }
+        section[data-testid="stSidebar"] * { color: #f7f9fc; }
+        section[data-testid="stSidebar"] [data-baseweb="select"] * {
+            color: #14213d;
+        }
+        section[data-testid="stSidebar"] input { color: #14213d; }
         @media (max-width: 900px) {
             .metric-grid { grid-template-columns: repeat(2, 1fr); }
             .ptt-header h1 { font-size: 1.45rem; }
@@ -153,6 +163,67 @@ except (OSError, DataLoadError, DashboardDataError) as error:
 
 for warning in warnings:
     st.warning(warning)
+
+# Kullanıcı seçimlerine göre günlük veriyi filtreler.
+st.sidebar.markdown("## 🔎 Rapor Filtreleri")
+st.sidebar.caption("Kartlar ve tablo seçimlerinize göre otomatik güncellenir.")
+
+minimum_date = daily_kpis["tarih"].min().date()
+maximum_date = daily_kpis["tarih"].max().date()
+date_range = st.sidebar.date_input(
+    "Tarih aralığı",
+    value=(minimum_date, maximum_date),
+    min_value=minimum_date,
+    max_value=maximum_date,
+    format="DD.MM.YYYY",
+)
+
+if not isinstance(date_range, (tuple, list)) or len(date_range) != 2:
+    st.warning("Analiz için başlangıç ve bitiş tarihini birlikte seçin.")
+    st.stop()
+
+selected_city = st.sidebar.selectbox(
+    "İl",
+    ["Tüm İller", *sorted(daily_kpis["il"].unique())],
+)
+selected_types = st.sidebar.multiselect(
+    "Şube tipi",
+    sorted(daily_kpis["sube_tipi"].unique()),
+    placeholder="Tüm şube tipleri",
+)
+
+available_branches = daily_kpis.copy()
+if selected_city != "Tüm İller":
+    available_branches = available_branches[available_branches["il"] == selected_city]
+if selected_types:
+    available_branches = available_branches[
+        available_branches["sube_tipi"].isin(selected_types)
+    ]
+
+selected_branches = st.sidebar.multiselect(
+    "Şube",
+    sorted(available_branches["sube_adi"].unique()),
+    placeholder="Tüm uygun şubeler",
+)
+
+start_date, end_date = date_range
+filter_mask = daily_kpis["tarih"].dt.date.between(start_date, end_date)
+if selected_city != "Tüm İller":
+    filter_mask &= daily_kpis["il"].eq(selected_city)
+if selected_types:
+    filter_mask &= daily_kpis["sube_tipi"].isin(selected_types)
+if selected_branches:
+    filter_mask &= daily_kpis["sube_adi"].isin(selected_branches)
+
+daily_kpis = daily_kpis.loc[filter_mask].copy()
+if daily_kpis.empty:
+    st.warning("Seçilen filtrelere uygun performans kaydı bulunamadı.")
+    st.stop()
+
+branch_summary = calculate_branch_summary(daily_kpis)
+st.sidebar.markdown("---")
+st.sidebar.write(f"**Kayıt:** {format_number(len(daily_kpis))}")
+st.sidebar.write(f"**Şube:** {daily_kpis['sube_kodu'].nunique()}")
 
 total_accepted = daily_kpis["kabul_edilen"].sum()
 total_delivered = daily_kpis["teslim_edilen"].sum()
@@ -206,6 +277,111 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
+st.markdown('<div class="section-title">Performans Grafikleri</div>', unsafe_allow_html=True)
+comparison_chart, trend_chart = st.columns(2)
+
+comparison_data = branch_summary.sort_values("teslim_basarisi_pct")
+comparison_figure = px.bar(
+    comparison_data,
+    x="teslim_basarisi_pct",
+    y="sube_adi",
+    orientation="h",
+    color="teslim_basarisi_pct",
+    color_continuous_scale=["#c84b45", "#ffcc00", "#237a57"],
+    text="teslim_basarisi_pct",
+    labels={
+        "teslim_basarisi_pct": "Teslim başarısı (%)",
+        "sube_adi": "Şube",
+    },
+    title="Şube Teslim Başarısı Karşılaştırması",
+)
+comparison_figure.update_traces(
+    texttemplate="%{text:.2f}%",
+    textposition="outside",
+    hovertemplate="<b>%{y}</b><br>Teslim başarısı: %{x:.2f}%<extra></extra>",
+)
+comparison_figure.update_layout(
+    coloraxis_showscale=False,
+    height=430,
+    margin=dict(l=10, r=25, t=55, b=10),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#14213d"),
+    xaxis=dict(range=[0, 105], showgrid=True, gridcolor="#e3e8ef"),
+    yaxis_title=None,
+)
+comparison_chart.plotly_chart(comparison_figure, width="stretch")
+
+trend_source = daily_kpis.assign(
+    ay=daily_kpis["tarih"].dt.to_period("M").dt.to_timestamp()
+)
+if daily_kpis["sube_kodu"].nunique() <= 5:
+    trend_data = (
+        trend_source.groupby(["ay", "sube_adi"], as_index=False)
+        .agg(
+            toplam_kabul=("kabul_edilen", "sum"),
+            toplam_teslim=("teslim_edilen", "sum"),
+        )
+    )
+    trend_data["teslim_basarisi_pct"] = (
+        trend_data["toplam_teslim"] / trend_data["toplam_kabul"] * 100
+    )
+    trend_figure = px.line(
+        trend_data,
+        x="ay",
+        y="teslim_basarisi_pct",
+        color="sube_adi",
+        markers=True,
+        labels={
+            "ay": "Ay",
+            "teslim_basarisi_pct": "Teslim başarısı (%)",
+            "sube_adi": "Şube",
+        },
+        title="Aylık Şube Performans Trendi",
+        color_discrete_sequence=[
+            "#14213d", "#d6a900", "#2878b5", "#c84b45", "#237a57"
+        ],
+    )
+else:
+    trend_data = (
+        trend_source.groupby("ay", as_index=False)
+        .agg(
+            toplam_kabul=("kabul_edilen", "sum"),
+            toplam_teslim=("teslim_edilen", "sum"),
+        )
+    )
+    trend_data["teslim_basarisi_pct"] = (
+        trend_data["toplam_teslim"] / trend_data["toplam_kabul"] * 100
+    )
+    trend_figure = px.line(
+        trend_data,
+        x="ay",
+        y="teslim_basarisi_pct",
+        markers=True,
+        labels={
+            "ay": "Ay",
+            "teslim_basarisi_pct": "Teslim başarısı (%)",
+        },
+        title="Aylık Kurum Geneli Performans Trendi",
+    )
+    trend_figure.update_traces(line_color="#14213d", marker_color="#ffcc00")
+
+trend_figure.update_traces(
+    hovertemplate="<b>%{x|%B %Y}</b><br>Teslim başarısı: %{y:.2f}%<extra></extra>"
+)
+trend_figure.update_layout(
+    height=430,
+    margin=dict(l=10, r=10, t=55, b=10),
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(color="#14213d"),
+    hovermode="x unified",
+    yaxis=dict(showgrid=True, gridcolor="#e3e8ef", ticksuffix="%"),
+    xaxis=dict(showgrid=False, tickformat="%b %Y"),
+    legend_title_text="Şube",
+)
+trend_chart.plotly_chart(trend_figure, width="stretch")
 
 st.markdown('<div class="section-title">Şube Performans Sıralaması</div>', unsafe_allow_html=True)
 ranking = branch_summary[
