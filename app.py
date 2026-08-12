@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import sys
 from pathlib import Path
 
@@ -19,6 +20,12 @@ from ptt_ai_projem.validation import validate_branch_data
 
 
 DATA_PATH = PROJECT_ROOT / "data" / "sube_performans.csv"
+
+LOGO_PATH = PROJECT_ROOT / "PTT_bayragi.png"
+
+logo_base64 = base64.b64encode(
+    LOGO_PATH.read_bytes()
+).decode("utf-8")
 
 
 class DashboardDataError(Exception):
@@ -79,8 +86,9 @@ st.markdown(
         .ptt-mark {
             display: grid;
             place-items: center;
-            width: 82px;
-            height: 64px;
+            width: 112px;
+            height: 74px;
+            overflow: hidden;
             border-radius: 12px;
             background: #ffcc00;
             color: #14213d;
@@ -121,18 +129,34 @@ st.markdown(
             color: #4a3c00;
             border: 1px solid #f3d75a;
         }
+        .branch-highlight {
+            min-height: 112px;
+            padding: 1rem 1.2rem;
+            border-radius: 14px;
+            background: white;
+            box-shadow: 0 4px 15px rgba(20, 33, 61, 0.08);
+        }
+        .branch-highlight.success { border-left: 6px solid #237a57; }
+        .branch-highlight.risk { border-left: 6px solid #c84b45; }
+        .branch-highlight .name { color: #14213d; font-size: 1.2rem; font-weight: 800; }
+        .branch-highlight .detail { color: #607086; margin-top: .35rem; }
         section[data-testid="stSidebar"] {
             background: #14213d;
             border-right: 4px solid #ffcc00;
         }
         section[data-testid="stSidebar"] * { color: #f7f9fc; }
-        section[data-testid="stSidebar"] [data-baseweb="select"] * {
-            color: #14213d;
-        }
+        section[data-testid="stSidebar"] [data-baseweb="select"] * { color: #14213d; }
         section[data-testid="stSidebar"] input { color: #14213d; }
         @media (max-width: 900px) {
             .metric-grid { grid-template-columns: repeat(2, 1fr); }
             .ptt-header h1 { font-size: 1.45rem; }
+
+        }
+        .ptt-logo-img {
+            width: 112px;
+            height: 74px;
+            display: block;
+            object-fit: cover;
         }
     </style>
     """,
@@ -140,9 +164,11 @@ st.markdown(
 )
 
 st.markdown(
-    """
+    f"""
     <div class="ptt-header">
-        <div class="ptt-mark">PTT</div>
+       <div class="ptt-mark">
+       <img src="data:image/png;base64,{logo_base64}" alt="PTT Logosu" class="ptt-logo-img">
+        </div>
         <div>
             <h1>AI Şube Performans Danışmanı</h1>
             <p>Şube performans analizi ve karar destek sistemi</p>
@@ -166,7 +192,7 @@ for warning in warnings:
 
 # Kullanıcı seçimlerine göre günlük veriyi filtreler.
 st.sidebar.markdown("## 🔎 Rapor Filtreleri")
-st.sidebar.caption("Kartlar ve tablo seçimlerinize göre otomatik güncellenir.")
+st.sidebar.caption("Kartlar, grafikler ve tablo seçimlerinize göre güncellenir.")
 
 minimum_date = daily_kpis["tarih"].min().date()
 maximum_date = daily_kpis["tarih"].max().date()
@@ -177,21 +203,18 @@ date_range = st.sidebar.date_input(
     max_value=maximum_date,
     format="DD.MM.YYYY",
 )
-
 if not isinstance(date_range, (tuple, list)) or len(date_range) != 2:
     st.warning("Analiz için başlangıç ve bitiş tarihini birlikte seçin.")
     st.stop()
 
 selected_city = st.sidebar.selectbox(
-    "İl",
-    ["Tüm İller", *sorted(daily_kpis["il"].unique())],
+    "İl", ["Tüm İller", *sorted(daily_kpis["il"].unique())]
 )
 selected_types = st.sidebar.multiselect(
     "Şube tipi",
     sorted(daily_kpis["sube_tipi"].unique()),
     placeholder="Tüm şube tipleri",
 )
-
 available_branches = daily_kpis.copy()
 if selected_city != "Tüm İller":
     available_branches = available_branches[available_branches["il"] == selected_city]
@@ -199,7 +222,6 @@ if selected_types:
     available_branches = available_branches[
         available_branches["sube_tipi"].isin(selected_types)
     ]
-
 selected_branches = st.sidebar.multiselect(
     "Şube",
     sorted(available_branches["sube_adi"].unique()),
@@ -219,7 +241,6 @@ daily_kpis = daily_kpis.loc[filter_mask].copy()
 if daily_kpis.empty:
     st.warning("Seçilen filtrelere uygun performans kaydı bulunamadı.")
     st.stop()
-
 branch_summary = calculate_branch_summary(daily_kpis)
 st.sidebar.markdown("---")
 st.sidebar.write(f"**Kayıt:** {format_number(len(daily_kpis))}")
@@ -278,8 +299,34 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+best_branch = branch_summary.iloc[0]
+risk_branch = branch_summary.iloc[-1]
+best_column, risk_column = st.columns(2)
+with best_column:
+    st.markdown(
+        f"""
+        <div class="branch-highlight success">
+            <div class="metric-label">En Başarılı Şube</div>
+            <div class="name">{best_branch['sube_adi']}</div>
+            <div class="detail">Teslim başarısı: %{best_branch['teslim_basarisi_pct']:.2f}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+with risk_column:
+    st.markdown(
+        f"""
+        <div class="branch-highlight risk">
+            <div class="metric-label">En Riskli Şube</div>
+            <div class="name">{risk_branch['sube_adi']}</div>
+            <div class="detail">Gecikme oranı: %{risk_branch['gecikme_orani_pct']:.2f}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
 st.markdown('<div class="section-title">Performans Grafikleri</div>', unsafe_allow_html=True)
-comparison_chart, trend_chart = st.columns(2)
+comparison_column, trend_column = st.columns(2)
 
 comparison_data = branch_summary.sort_values("teslim_basarisi_pct")
 comparison_figure = px.bar(
@@ -290,98 +337,75 @@ comparison_figure = px.bar(
     color="teslim_basarisi_pct",
     color_continuous_scale=["#c84b45", "#ffcc00", "#237a57"],
     text="teslim_basarisi_pct",
-    labels={
-        "teslim_basarisi_pct": "Teslim başarısı (%)",
-        "sube_adi": "Şube",
-    },
+    labels={"teslim_basarisi_pct": "Teslim başarısı (%)", "sube_adi": "Şube"},
     title="Şube Teslim Başarısı Karşılaştırması",
 )
 comparison_figure.update_traces(
-    texttemplate="%{text:.2f}%",
-    textposition="outside",
+    texttemplate="%{text:.2f}%", textposition="outside",
     hovertemplate="<b>%{y}</b><br>Teslim başarısı: %{x:.2f}%<extra></extra>",
 )
 comparison_figure.update_layout(
-    coloraxis_showscale=False,
-    height=430,
+    coloraxis_showscale=False, height=430,
     margin=dict(l=10, r=25, t=55, b=10),
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
     font=dict(color="#14213d"),
     xaxis=dict(range=[0, 105], showgrid=True, gridcolor="#e3e8ef"),
     yaxis_title=None,
 )
-comparison_chart.plotly_chart(comparison_figure, width="stretch")
+comparison_column.plotly_chart(comparison_figure, width="stretch")
 
-trend_source = daily_kpis.assign(
+monthly = daily_kpis.assign(
     ay=daily_kpis["tarih"].dt.to_period("M").dt.to_timestamp()
 )
-if daily_kpis["sube_kodu"].nunique() <= 5:
-    trend_data = (
-        trend_source.groupby(["ay", "sube_adi"], as_index=False)
-        .agg(
-            toplam_kabul=("kabul_edilen", "sum"),
-            toplam_teslim=("teslim_edilen", "sum"),
-        )
-    )
-    trend_data["teslim_basarisi_pct"] = (
-        trend_data["toplam_teslim"] / trend_data["toplam_kabul"] * 100
-    )
-    trend_figure = px.line(
-        trend_data,
-        x="ay",
-        y="teslim_basarisi_pct",
-        color="sube_adi",
-        markers=True,
-        labels={
-            "ay": "Ay",
-            "teslim_basarisi_pct": "Teslim başarısı (%)",
-            "sube_adi": "Şube",
-        },
-        title="Aylık Şube Performans Trendi",
-        color_discrete_sequence=[
-            "#14213d", "#d6a900", "#2878b5", "#c84b45", "#237a57"
-        ],
-    )
-else:
-    trend_data = (
-        trend_source.groupby("ay", as_index=False)
-        .agg(
-            toplam_kabul=("kabul_edilen", "sum"),
-            toplam_teslim=("teslim_edilen", "sum"),
-        )
-    )
-    trend_data["teslim_basarisi_pct"] = (
-        trend_data["toplam_teslim"] / trend_data["toplam_kabul"] * 100
-    )
-    trend_figure = px.line(
-        trend_data,
-        x="ay",
-        y="teslim_basarisi_pct",
-        markers=True,
-        labels={
-            "ay": "Ay",
-            "teslim_basarisi_pct": "Teslim başarısı (%)",
-        },
-        title="Aylık Kurum Geneli Performans Trendi",
-    )
-    trend_figure.update_traces(line_color="#14213d", marker_color="#ffcc00")
-
-trend_figure.update_traces(
-    hovertemplate="<b>%{x|%B %Y}</b><br>Teslim başarısı: %{y:.2f}%<extra></extra>"
+monthly = monthly.groupby("ay", as_index=False).agg(
+    toplam_kabul=("kabul_edilen", "sum"),
+    toplam_teslim=("teslim_edilen", "sum"),
+    toplam_geciken=("geciken", "sum"),
+    toplam_sikayet=("sikayet_sayisi", "sum"),
 )
+monthly["teslim_basarisi_pct"] = monthly["toplam_teslim"] / monthly["toplam_kabul"] * 100
+monthly["gecikme_orani_pct"] = monthly["toplam_geciken"] / monthly["toplam_kabul"] * 100
+monthly["sikayet_orani_binde"] = monthly["toplam_sikayet"] / monthly["toplam_teslim"] * 1000
+
+trend_figure = px.line(
+    monthly, x="ay", y="teslim_basarisi_pct", markers=True,
+    labels={"ay": "Ay", "teslim_basarisi_pct": "Teslim başarısı (%)"},
+    title="Aylık Teslim Başarısı Trendi",
+)
+trend_figure.update_traces(line_color="#14213d", marker_color="#ffcc00")
 trend_figure.update_layout(
-    height=430,
-    margin=dict(l=10, r=10, t=55, b=10),
-    paper_bgcolor="rgba(0,0,0,0)",
-    plot_bgcolor="rgba(0,0,0,0)",
+    height=430, margin=dict(l=10, r=10, t=55, b=10),
+    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
     font=dict(color="#14213d"),
-    hovermode="x unified",
     yaxis=dict(showgrid=True, gridcolor="#e3e8ef", ticksuffix="%"),
     xaxis=dict(showgrid=False, tickformat="%b %Y"),
-    legend_title_text="Şube",
 )
-trend_chart.plotly_chart(trend_figure, width="stretch")
+trend_column.plotly_chart(trend_figure, width="stretch")
+
+st.markdown('<div class="section-title">Risk ve Kalite Eğilimleri</div>', unsafe_allow_html=True)
+delay_column, complaint_column = st.columns(2)
+delay_figure = px.area(
+    monthly, x="ay", y="gecikme_orani_pct", markers=True,
+    labels={"ay": "Ay", "gecikme_orani_pct": "Gecikme oranı (%)"},
+    title="Aylık Gecikme Oranı",
+)
+delay_figure.update_traces(line_color="#c84b45", fillcolor="rgba(200,75,69,.18)")
+complaint_figure = px.bar(
+    monthly, x="ay", y="sikayet_orani_binde",
+    labels={"ay": "Ay", "sikayet_orani_binde": "Şikâyet oranı (‰)"},
+    title="Her 1.000 Teslimattaki Şikâyet",
+    color_discrete_sequence=["#d6a900"],
+)
+for figure in (delay_figure, complaint_figure):
+    figure.update_layout(
+        height=360, margin=dict(l=10, r=10, t=55, b=10),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#14213d"),
+        xaxis=dict(showgrid=False, tickformat="%b %Y"),
+        yaxis=dict(showgrid=True, gridcolor="#e3e8ef"),
+    )
+delay_column.plotly_chart(delay_figure, width="stretch")
+complaint_column.plotly_chart(complaint_figure, width="stretch")
 
 st.markdown('<div class="section-title">Şube Performans Sıralaması</div>', unsafe_allow_html=True)
 ranking = branch_summary[
