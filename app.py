@@ -300,7 +300,7 @@ st.markdown(
 )
 
 best_branch = branch_summary.iloc[0]
-risk_branch = branch_summary.iloc[-1]
+risk_branch = branch_summary.sort_values("gecikme_orani_pct", ascending=False).iloc[0]
 best_column, risk_column = st.columns(2)
 with best_column:
     st.markdown(
