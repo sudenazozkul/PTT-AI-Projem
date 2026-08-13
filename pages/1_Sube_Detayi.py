@@ -51,12 +51,6 @@ def period_delta(data: pd.DataFrame, column: str) -> float | None:
     return float(recent[column].mean() - previous[column].mean())
 
 
-st.set_page_config(
-    page_title="PTT Şube Detayı",
-    page_icon="🏤",
-    layout="wide",
-)
-
 st.markdown(
     """
     <style>
@@ -86,7 +80,7 @@ st.markdown(
 st.markdown(
     """
     <div class="detail-header">
-        <h1>🏤 Şube Performans Detayı</h1>
+        <h1>Şube Performans Detayı</h1>
         <p>Seçilen şubenin KPI, iş yükü, personel ve kalite eğilimleri</p>
     </div>
     """,
@@ -99,7 +93,7 @@ except (OSError, DataLoadError, ValueError) as error:
     st.error(f"Şube verisi hazırlanamadı: {error}")
     st.stop()
 
-st.sidebar.markdown("## 🏤 Şube Seçimi")
+st.sidebar.markdown("## Şube Seçimi")
 selected_branch = st.sidebar.selectbox(
     "Şube",
     sorted(daily_data["sube_adi"].unique()),

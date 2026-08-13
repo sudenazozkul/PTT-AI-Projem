@@ -33,11 +33,6 @@ def load_kpi_data(csv_path: str, modified_at: float) -> pd.DataFrame:
     return calculate_daily_kpis(validation.cleaned_data)
 
 
-st.set_page_config(
-    page_title="PTT Şube Karşılaştırma",
-    page_icon="⚖️",
-    layout="wide",
-)
 st.markdown(
     """
     <style>
@@ -66,7 +61,7 @@ st.markdown(
 st.markdown(
     """
     <div class="compare-header">
-        <h1>⚖️ Şube Performans Karşılaştırması</h1>
+        <h1>Şube Performans Karşılaştırması</h1>
         <p>Şubeleri aynı dönem ve ortak KPI'lar üzerinden yan yana inceleyin</p>
     </div>
     """,
@@ -80,7 +75,7 @@ except (OSError, DataLoadError, ValueError) as error:
     st.stop()
 
 branch_options = sorted(daily_data["sube_adi"].unique())
-st.sidebar.markdown("## ⚖️ Karşılaştırma Seçimleri")
+st.sidebar.markdown("## Karşılaştırma Seçimleri")
 selected_branches = st.sidebar.multiselect(
     "Şubeler",
     branch_options,
