@@ -67,6 +67,11 @@ navigation = st.navigation(
             title="Şube Karşılaştırma",
             url_path="sube-karsilastirma",
         ),
+        st.Page(
+            "pages/3_Analiz_ve_Oneriler.py",
+            title="Analiz ve Öneriler",
+            url_path="analiz-ve-oneriler",
+        ),
     ],
     position="sidebar",
     expanded=True,
