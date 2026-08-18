@@ -72,6 +72,11 @@ navigation = st.navigation(
             title="Analiz ve Öneriler",
             url_path="analiz-ve-oneriler",
         ),
+        st.Page(
+            "pages/4_Risk_ve_Anomaliler.py",
+            title="Risk ve Anomaliler",
+            url_path="risk-ve-anomaliler",
+        ),
     ],
     position="sidebar",
     expanded=True,
