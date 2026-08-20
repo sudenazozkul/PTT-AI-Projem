@@ -39,7 +39,7 @@ def weighted_delivery_success(data: pd.DataFrame) -> float:
 
 
 def period_delta(data: pd.DataFrame, column: str) -> float | None:
-    """Son 30 gün ile önceki 30 gün arasındaki ortalama farkı döndürür."""
+    """Son 30 gün ile önceki 30 günün ağırlıklı KPI farkını döndürür."""
     last_date = data["tarih"].max()
     recent = data[data["tarih"] > last_date - pd.Timedelta(days=30)]
     previous = data[
@@ -48,7 +48,9 @@ def period_delta(data: pd.DataFrame, column: str) -> float | None:
     ]
     if recent.empty or previous.empty:
         return None
-    return float(recent[column].mean() - previous[column].mean())
+    recent_value = float(calculate_branch_summary(recent).iloc[0][column])
+    previous_value = float(calculate_branch_summary(previous).iloc[0][column])
+    return recent_value - previous_value
 
 
 st.markdown(
@@ -154,13 +156,16 @@ cards[4].metric("Dağıtıcı İş Yükü", f"{summary['dagitici_is_yuku']:.2f}"
 st.caption("Kartlardaki değişimler son 30 günün önceki 30 güne farkını gösterir.")
 
 monthly = branch_data.assign(
-    ay=branch_data["tarih"].dt.to_period("M").dt.to_timestamp()
+    ay=branch_data["tarih"].dt.to_period("M").dt.to_timestamp(),
+    teslim_suresi_agirlikli=(
+        branch_data["ortalama_teslim_suresi"] * branch_data["teslim_edilen"]
+    ),
 ).groupby("ay", as_index=False).agg(
     kabul_edilen=("kabul_edilen", "sum"),
     teslim_edilen=("teslim_edilen", "sum"),
     geciken=("geciken", "sum"),
     sikayet_sayisi=("sikayet_sayisi", "sum"),
-    ortalama_teslim_suresi=("ortalama_teslim_suresi", "mean"),
+    teslim_suresi_agirlikli=("teslim_suresi_agirlikli", "sum"),
     personel_verimliligi=("personel_verimliligi", "mean"),
     dagitici_is_yuku=("dagitici_is_yuku", "mean"),
 )
@@ -168,6 +173,11 @@ monthly["teslim_basarisi_pct"] = (
     monthly["teslim_edilen"] / monthly["kabul_edilen"] * 100
 )
 monthly["gecikme_orani_pct"] = monthly["geciken"] / monthly["kabul_edilen"] * 100
+monthly["ortalama_teslim_suresi"] = (
+    monthly["teslim_suresi_agirlikli"]
+    .div(monthly["teslim_edilen"].replace(0, pd.NA))
+    .fillna(0)
+)
 
 left_chart, right_chart = st.columns(2)
 performance_figure = go.Figure()

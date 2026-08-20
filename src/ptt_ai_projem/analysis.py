@@ -56,6 +56,13 @@ def _weighted_rate(data: pd.DataFrame, numerator: str, denominator: str) -> floa
     return float(data[numerator].sum()) / denominator_total * 100 if denominator_total else 0.0
 
 
+def _weighted_average(data: pd.DataFrame, value: str, weight: str) -> float:
+    weight_total = float(data[weight].sum())
+    if not weight_total:
+        return 0.0
+    return float((data[value] * data[weight]).sum()) / weight_total
+
+
 def _relative_change(current: float, previous: float) -> float:
     return (current - previous) / abs(previous) if previous else 0.0
 
@@ -148,8 +155,12 @@ def analyze_branches(
         recent = branch[branch["tarih"] > last_date - pd.Timedelta(days=30)]
         previous = branch[(branch["tarih"] > last_date - pd.Timedelta(days=60)) & (branch["tarih"] <= last_date - pd.Timedelta(days=30))]
         if len(recent) >= config.minimum_period_days and len(previous) >= config.minimum_period_days:
-            recent_time = float(recent["ortalama_teslim_suresi"].mean())
-            previous_time = float(previous["ortalama_teslim_suresi"].mean())
+            recent_time = _weighted_average(
+                recent, "ortalama_teslim_suresi", "teslim_edilen"
+            )
+            previous_time = _weighted_average(
+                previous, "ortalama_teslim_suresi", "teslim_edilen"
+            )
             time_change = _relative_change(recent_time, previous_time)
             if time_change >= config.period_change_ratio:
                 findings.append(_finding(

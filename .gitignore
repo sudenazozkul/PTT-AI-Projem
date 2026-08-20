@@ -8,6 +8,15 @@ wheels/
 
 # Virtual environments
 .venv
+.api-venv/
+
+# Local reports supplied outside source control
 Proje Hakkında Bilgiler*.txt
 Dashboard Hakkında Bilgiler*.txt
 KuralTabanlıAnaliz*.txt
+
+# Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+npm-debug.log*
